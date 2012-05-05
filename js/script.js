@@ -2,9 +2,208 @@
 
 */
 
+// 页面模板 template
+console.log('页面模板 begin');
+var template = new Object();
+template.main = '<div class="inner">\n<h1>吸血鬼大法官</h1>\n<p>点击开始出题, 来出题吧!!</p>\n<p>\n<a class="btn btn-primary btn-large" href="javascript:void(0)" onclick="{{func}}">出题</a>\n</p>\n</div>';
+template.new_game = '<div class="well">\n<h2>填词吧...</h2>\n<table class="table table-bordered table-condensed">\n<thead><tr><th>词语</th><th>人数</th><th>操作</th></tr></thead>\n<tbody>\n{{#words}}\n<tr><td>{{name}}</td><td>{{num}}</td><td><a class="game_del_word btn btn-mini btn-primary">删除</a></td></tr>\n{{/words}}\n</tbody>\n</table>\n<form id="wordsForm">\n<fieldset class="form-inline">\n<input type="text" class="input-medium" placeholder="词汇"/>\n<input type="number" class="input-mini" placeholder="数量"/>\n<a class="game_add_word btn btn-primary">增加</a>\n<a class="game_go_getword btn btn-danger">开始抽词</a>\n<a class="game_go_home btn btn-info">首页</a>\n</fieldset>\n</form>\n</div>';
+template.getwords = '<div class="well">\n<h1>{{name}}</h1>\n<h2><b>{{count}}</b>号位</h2>\n<p>\n<a class="game_prev_name btn .btn-large">上一位</a>\n<a class="game_next_name btn .btn-large btn-success">下一位</a>\n<a class="game_start_play btn .btn-large btn-danger">开始游戏!!!</a>\n</p>\n</div>';
+template.gameplay = '<div class="well">\n<h2>法官开始主持游戏吧...</h2>\n<p id="game_status"></p>\n<table class="table table-bordered table-condensed">\n<thead><tr><th>座次</th><th>词语</th><th>操作</th></tr></thead>\n<tbody>\n{{#players}}\n<tr><td>{{pos}}号位</td><td><span>{{word}}<span></td><td><a class="game_switch btn btn-mini btn-danger">死亡</a></td></tr>\n{{/players}}\n</tbody>\n</table>\n<a class="game_go_home btn btn-info">首页</a>\n</div>';
 
 
+var config = new Object();
+
+// 填词视图
+config.wordsview = {
+    "words" : []
+}
+
+// 抽词视图
+config.getwords = {
+    "index" : 0,
+    "count" : function () { return this.index+1;},
+    "name" : function () { 
+        return this.getName(this.index);
+    },
+    "words" : [],
+    "isFirst" : function () { return this.index == 0;},
+    "isLast" : function () { return this.index == this.words.length-1;},
+    "getName" : function (index) { 
+        if (index >= 0 && index < this.words.length) 
+            return this.words[index]; 
+        else
+            return undefined;
+     }
+}
+
+// 法官主持游戏视图
+config.gameplay = {
+    "counts": {},
+    "players": [],
+    "reset": function () {this.counts = {};this.players=[];}
+}
 
 
+// 函数
 
+var func = new Object();
+func.submitForm = function() {
+    inputs = $('#wordsForm').find('input');
+    config.words = []
+    for (var i = 0; i < inputs.length; i+=2) {
+        num = parseInt(inputs[i+1].value)
+        if (num) {
+            config.words.push({text:inputs[i].value, num:inputs[i+1].value})
+        }
+    }
+    if (config.words.length > 1) {
+        func.ShowGameGetCards();
+    }
+};
 
+func.ShowGameMain = function() {
+    config.wordsview.words = [];
+    $('#main_game').html($.mustache(template.main, {func:"func.ShowGameNewGame()"}));
+};
+
+func.ShowGameNewGame = function() {
+    $('#main_game').html($.mustache(template.new_game, config.wordsview));
+    
+    // 设置添加单词的设定, 忽略数量不为数字的输入
+    $(".game_add_word").click(function () {
+      inputs = $('#wordsForm').find('input');
+      num = parseInt(inputs[1].value)
+      if (num) {
+        var isExist = false;
+        for (var i=0; i<config.wordsview.words.length; ++i) {
+            if (config.wordsview.words[i]['name'] == inputs[0].value) {
+                isExist = true;
+                break;
+            }
+        }
+        
+        if (isExist == false) {
+            config.wordsview.words.push({'name':inputs[0].value, 'num':num});
+            func.ShowGameNewGame();
+        }
+      }
+    });
+    
+    // 删除输入的内容, 重新输入
+    $(".game_del_word").click(function () {
+        name = $(this).parent().parent().find('td:eq(0)').text();
+        config.wordsview.words = _.filter(config.wordsview.words, function(obj){ return obj.name != name; });
+        func.ShowGameNewGame();
+    });
+    
+    // 开始抽词按钮
+    $(".game_go_getword").click(function () {
+        
+        config.getwords.words = []
+        var words = config.wordsview.words
+        var shuffle_words = config.getwords.words
+        if (words.length < 2)
+            return;
+        
+        for (var i=0; i<words.length; ++i) {
+            _(words[i].num).times(function(){ shuffle_words.push(words[i].name); });
+        }
+        
+        config.getwords.words = _.shuffle(shuffle_words);
+        console.log(config.getwords.words);
+        config.getwords.index = 0;
+        func.ShowGameStartGetword();
+    });
+    
+    // 回首页
+    $(".game_go_home").click(function () {
+        func.ShowGameMain();
+    });
+};
+
+func.ShowGameStartGetword = function() {
+    $('#main_game').html($.mustache(template.getwords, config.getwords));
+    
+    if (config.getwords.isFirst())
+        $('.game_prev_name').hide();
+    
+    if (config.getwords.isLast())
+        $('.game_next_name').hide();
+    else
+        $('.game_start_play').hide();
+    
+    $('.game_prev_name').click(function () {
+        if (config.getwords.isFirst())
+            return;
+        --config.getwords.index;
+        func.ShowGameStartGetword();
+    });
+    
+    $('.game_next_name').click(function () {
+        if (config.getwords.isLast())
+            return;
+        ++config.getwords.index;
+        func.ShowGameStartGetword();
+    });
+    
+    $('.game_start_play').click(function () {
+        config.gameplay.reset();
+        func.ShowGameStartPlay();
+    });
+};
+
+func.refreshGamePlay = function() {
+    res = _.map(config.gameplay.counts, function(num, key) {
+        return key + ":" + num;
+    });
+    //$('#game_status').text($.mustache("{{#counts}}{{.}}{{/counts}}", config.gameplay));
+    $('#game_status').text(res.join(','));
+}
+
+func.ShowGameStartPlay = function() {
+    config.gameplay.players = []
+    var players = config.gameplay.players;
+    var counts = config.gameplay.counts;
+
+    for (var i=0; i<config.getwords.words.length; ++i) {
+        if (counts[config.getwords.words[i]] === undefined)
+            counts[config.getwords.words[i]] = 1;
+        else
+            ++counts[config.getwords.words[i]];
+
+        players.push({'pos':i+1, 'word':config.getwords.words[i]});
+    }
+    
+    
+    $('#main_game').html($.mustache(template.gameplay, config.gameplay));
+    
+    // 初始时全部黑化
+    $('#main_game table tbody tr').each(function (index){
+        $(this).find('td:eq(1)').find('span').css({ backgroundColor: "#333" });
+    }); //find('td:eq(1) span').text()
+    
+    func.refreshGamePlay();
+    
+    $('.game_switch').click(function () {
+        word = $(this).parent().parent().find('td:eq(1)').text();
+        if ($(this).hasClass('dead')) {
+            $(this).removeClass('dead').addClass('live').text('死亡').addClass('btn-danger');
+            $(this).parent().parent().find('td:eq(1)').find('span').css({ backgroundColor: "#333" });
+            ++counts[word];
+        } else {
+            $(this).removeClass('live').addClass('dead').text('复活').removeClass('btn-danger');
+            $(this).parent().parent().find('td:eq(1)').find('span').css({ backgroundColor: "" });
+            --counts[word];
+        }
+        
+        func.refreshGamePlay();
+    });
+    
+    $(".game_go_home").click(function () {
+        func.ShowGameMain();
+    });
+}
+
+$(document).ready(function () {
+    func.ShowGameMain();
+});
