@@ -1,0 +1,25 @@
+---
+# index.html头部引用
+header_block:  |
+    <link rel="stylesheet" href="css/style.min.css">
+    <script src="js/libs/modernizr-2.5.3-respond-1.1.0.min.js"></script>
+
+# index.html依赖库
+script_below_body_block:  |
+    <script src="js/libs/jquery-1.7.2.min.js"></script>
+    <script src="js/libs/bootstrap/bootstrap.min.js"></script>
+    <script src="js/libs/jquery.mustache.js"></script>
+    <script src="js/libs/underscore-min.js"></script>
+    <script src="js/script.min.js"></script>
+
+# script.js 配置上报cgi入口
+stat_url: action/totrello/new_text
+
+# python totrello 配置
+TRELLO_APIKEY: |
+    "YOUR API KEY!!"
+TRELLO_TOKEN: |
+    "YOUR TOKEN"
+TRELLO_CARDID: |
+    "50bb491221463f3f110071e5"
+---
